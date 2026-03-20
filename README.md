@@ -1,0 +1,1 @@
+## This is a project on the subject Nature Inspired Computing. We will try to implement gesture recognition via NIR
