@@ -18,7 +18,7 @@ train_loader, test_loader = get_emg_pkl_loaders(
     test_subjects=list(range(17, 22)),
     num_frames=20
 )
-print(f"Data loaded! Train batches: {len(train_loader)}, Test batches: {len(test_loader)}")
+print(f"Train batches: {len(train_loader)}, Test batches: {len(test_loader)}")
 
 base_model = GestureSNN(input_channels=2, num_classes=5)
 INITIAL_WEIGHTS = copy.deepcopy(base_model.state_dict())
@@ -145,4 +145,4 @@ if __name__ == "__main__":
     best_params = abc.optimize(fitness_function)
     
     print("\npriveet!")
-    print(f"Ideal parameters -> beta: {best_params[0]:.4f}, lr: {best_params[1]:.5f}")
+    print(f"The best parameters -> beta: {best_params[0]:.4f}, lr: {best_params[1]:.5f}")
