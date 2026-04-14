@@ -18,15 +18,16 @@ class GestureSNN(nn.Module):
         super().__init__()
         self.conv1 = nn.Conv2d(input_channels, 16, kernel_size=4, stride=4)
         self.lif1 = snn.Leaky(beta=beta, spike_grad=spike_grad)
-        self.pool1 = nn.MaxPool2d(2)
+        self.pool1 = nn.AvgPool2d(2)
 
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
         self.lif2 = snn.Leaky(beta=beta, spike_grad=spike_grad)
-        self.pool2 = nn.MaxPool2d(2)
+        self.pool2 = nn.AvgPool2d(2)
 
         self.flatten = nn.Flatten()
         self.fc1 = nn.Linear(32 * 8 * 8, num_classes)
         self.lif3 = snn.Leaky(beta=beta, spike_grad=spike_grad)
+
 
     def forward(self, x):
 

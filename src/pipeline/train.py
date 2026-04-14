@@ -21,7 +21,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 train_subjects = list(range(1, 17))
 test_subjects = list(range(17, 22))
 
-print(f"Устройство: {device}, batch_size={batch_size}, lr={learning_rate}, num_frames={num_frames}")
+print(f"Device: {device}, batch_size={batch_size}, lr={learning_rate}, num_frames={num_frames}")
 
 # Loading
 train_loader, test_loader = get_emg_pkl_loaders(

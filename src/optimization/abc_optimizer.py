@@ -11,19 +11,19 @@ from src.core.model.model import GestureSNN, calc_accuracy, device
 from src.pipeline.dataloader.emg_pkl import get_emg_pkl_loaders
 
 print("Loading datasets for the swarm...")
-train_loader, test_loader = get_emg_pkl_loaders(
+train_loader, val_loader = get_emg_pkl_loaders(
     pkl_path="data/EMG_DVS/relax21_cropped_dvs_emg_spikes.pkl",
     batch_size=8,
-    train_subjects=list(range(1, 17)),
-    test_subjects=list(range(17, 22)),
+    train_subjects=list(range(1, 15)),
+    test_subjects=list(range(15, 17)),
     num_frames=20
 )
-print(f"Train batches: {len(train_loader)}, Test batches: {len(test_loader)}")
+print(f"Train batches: {len(train_loader)}, Validation batches: {len(val_loader)}")
 
 base_model = GestureSNN(input_channels=2, num_classes=5)
 INITIAL_WEIGHTS = copy.deepcopy(base_model.state_dict())
 
-def fitness_function(params, epochs=1):
+def fitness_function(params, epochs=3):
     beta_val, lr_val = params
     
     local_model = GestureSNN(input_channels=2, num_classes=5).to(device)
@@ -51,7 +51,7 @@ def fitness_function(params, epochs=1):
             loss.backward()
             local_optimizer.step()
 
-    acc = calc_accuracy(local_model, test_loader)
+    acc = calc_accuracy(local_model, val_loader)
     error = 1.0 - acc 
     
     print(f"Evaluated [beta={beta_val:.3f}, lr={lr_val:.5f}] -> Accuracy: {acc*100:.2f}%")
@@ -144,5 +144,12 @@ if __name__ == "__main__":
     abc = SimpleABC(num_bees=6, bounds=search_bounds, iter_max=3, limit=2)
     best_params = abc.optimize(fitness_function)
     
-    print("\npriveet!")
+    print("\npriveet!") # Priveeeeeet, my best friend, Saidaaaaaa)
+    print("\nPriveeeeeet, my best friend, Saidaaaaaa!)")
     print(f"The best parameters -> beta: {best_params[0]:.4f}, lr: {best_params[1]:.5f}")
+
+    # Saving parameters for final learning
+    import json
+    with open("best_params.json", "w") as f:
+        json.dump({"beta": float(best_params[0]), "lr": float(best_params[1])}, f)
+    print("Parameters saved to best_params.json")

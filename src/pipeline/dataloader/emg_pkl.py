@@ -7,7 +7,7 @@ class EMG_PKL_Dataset(Dataset):
     def __init__(self, pkl_path, num_frames=20, sensor_size=(128,128), subjects=None):
         with open(pkl_path, 'rb') as f:
             data = pickle.load(f, encoding='latin1')
-        print("Доступные ключи в .pkl:", data.keys())
+        print("Available keys in the .pkl:", data.keys())
         self.dvs_list = data['dvs']
         self.labels = data['y']
         self.subjects = data.get('sub', data.get('subject', None))
@@ -17,7 +17,7 @@ class EMG_PKL_Dataset(Dataset):
             self.labels = [self.labels[i] for i in idx]
         self.num_frames = num_frames
         self.sensor_size = sensor_size
-        print(f"Загружено {len(self.dvs_list)} образцов, num_frames={num_frames}")
+        print(f"Loaded {len(self.dvs_list)} samples, num_frames={num_frames}")
 
     def __len__(self):
         return len(self.dvs_list)
