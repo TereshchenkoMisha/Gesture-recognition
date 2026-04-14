@@ -1,106 +1,174 @@
-
 # Gesture Recognition with Spiking Neural Networks & ABC Optimization
 
-## Project Overview
+Gesture recognition using Spiking Neural Networks (SNNs) trained on DVS event-camera data. Model hyperparameters are optimized with the **Artificial Bee Colony (ABC)** swarm intelligence algorithm.
 
-This project focuses on **gesture recognition** using **Spiking Neural Networks (SNNs)**. SNNs are biologically‑plausible neural networks that process temporal information efficiently, making them ideal for dynamic gesture data from event‑based cameras or video streams.  
+---
 
-To maximise accuracy and generalisation, we optimise the SNN hyperparameters with the **Artificial Bee Colony (ABC)** algorithm – a swarm‑intelligence metaheuristic.
+## How It Works
 
-### Key Features
+The model receives an event stream from a DVS camera, converts it into a series of binary frames (positive/negative polarity channels), and passes them through a convolutional SNN. Classification is based on the total spike count at the output layer accumulated over all time steps.
 
-- SNN training (e.g., using `snnTorch` or a custom PyTorch implementation)
-- Hyperparameter optimisation with ABC (thresholds, time constants, learning rate, number of spikes, etc.)
-- Support for multiple gesture datasets (DVS Gesture, SHREC, custom recordings)
-- Visualisation of training curves and ABC convergence
-- Model checkpointing and export to NIR (Neuromorphic Intermediate Representation)
+To find optimal `beta` (membrane potential decay constant) and `learning rate`, the **ABC** algorithm trains multiple model instances with different hyperparameter configurations and selects the best one.
 
 ---
 
 ## Project Structure
 
 ```
-Gesture-recognition/
+.
 ├── data/
-│   ├── dataset_1/               # DVS128 Gesture Dataset
-│   └── dataset_2/               
-├── docs/
-│   └── ai-audit/              
-├── models/
-│   ├── checkpoints/             # Saved model weights
-│   └── exported_nir/            # Models exported to NIR format
+│   └── EMG_DVS/                        # Dataset: DVS + EMG spikes (.pkl)
 ├── src/
-│   ├── core/                    # SNN model definition, training, evaluation
-│   ├── optimization/            # ABC algorithm implementation
-│   ├── pipeline/                
-│   └── utils/                 
+│   ├── core/
+│   │   └── model/
+│   │       └── model.py                # GestureSNN architecture
+│   ├── optimization/
+│   │   ├── abc_optimizer.py            # Artificial Bee Colony
+│   │   ├── aco_optimizer.py            # Ant Colony Optimization
+│   │   └── pso_optimizer.py            # Particle Swarm Optimization
+│   └── pipeline/
+│       ├── dataloader/
+│       │   ├── dvs_gesture.py          # DVS128 Gesture loader (tonic)
+│       │   └── emg_pkl.py              # EMG+DVS loader from .pkl
+│       ├── train.py                    # Baseline training
+│       ├── train_optimized_model.py    # Training with ABC-found parameters
+│       └── export_to_nir.py           # Export to NIR format
+├── snn.ipynb                           # Jupyter notebook for experiments
+├── best_emg_model.pth                  # Saved weights of the best baseline model
+├── best_params.json                    # Best hyperparameters found by ABC
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Installation & Setup
+## Model: GestureSNN
 
+`src/core/model/model.py`
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/Gesture-recognition.git
-   cd Gesture-recognition
-   ```
+A two-layer convolutional SNN with Leaky Integrate-and-Fire (LIF) neurons:
 
-2. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+```
+Conv2d(2→16, 4×4, stride=4) → LIF → AvgPool2d(2)
+Conv2d(16→32, 3×3, pad=1)   → LIF → AvgPool2d(2)
+Flatten → Linear(32×8×8 → num_classes) → LIF
+```
 
-3. **Prepare datasets**  
-   Place your datasets into `data/dataset_1/` and `data/dataset_2/`.  
-   For public datasets (e.g., DVS Gesture), see **Datasets** section below.
-
-4. **Run ABC optimisation**
-   ```bash
-   python src/pipeline/run_abc_optimization.py --dataset dataset_1 --epochs 50 --colony_size 20
-   ```
-
-5. **Train without optimisation** (using a predefined config)
-   ```bash
-   python src/core/train.py --config configs/default.yaml
-   ```
-
-6. **Evaluate the best model**
-   ```bash
-   python src/core/evaluate.py --checkpoint models/checkpoints/best_model.pth
-   ```
+- **Input:** `[Time, Batch, 2, 128, 128]` — 2 channels (positive/negative polarity)
+- **Output:** spikes at each time step; classification via `sum(dim=0)`
+- **Defaults:** `beta=0.95`, `num_classes=11` (DVS Gesture) or `5` (EMG/DVS dataset)
+- **Surrogate gradient:** `fast_sigmoid` for backpropagation through spikes
 
 ---
 
 ## Datasets
 
+### DVS128 Gesture Dataset (IBM)
+11 gesture classes recorded with a DVS128 event camera.  
+Loaded via the `tonic` library:
 
-Public **DVS128 Gesture Dataset** (recorded with an event camera, 11 gesture classes).  
-  [IBM DVS Gesture](https://research.ibm.com/interactive/dvs-gesture-dataset)
+```python
+from src.pipeline.dataloader.dvs_gesture import get_dvs_gesture_loaders
+train_loader, test_loader = get_dvs_gesture_loaders(batch_size=16, data_path='./data')
+```
 
-Preprocessing scripts for converting event streams into SNN‑compatible formats are located in `src/utils/preprocess.py`.
+The event stream is converted into frames with a `50 ms` time window.
+
+### EMG+DVS Dataset (.pkl)
+File `relax21_cropped_dvs_emg_spikes.pkl` contains the following fields:
+- `dvs` — list of events `(x, y, t, polarity)`
+- `y` — class labels (5 gestures)
+- `sub` / `subject` — subject ID
+
+Split: subjects 1–16 for training, 17–21 for testing.
+
+```python
+from src.pipeline.dataloader.emg_pkl import get_emg_pkl_loaders
+train_loader, test_loader = get_emg_pkl_loaders(
+    pkl_path="data/EMG_DVS/relax21_cropped_dvs_emg_spikes.pkl",
+    batch_size=8,
+    train_subjects=list(range(1, 17)),
+    test_subjects=list(range(17, 22)),
+    num_frames=20
+)
+```
+
+Each event stream is converted into `num_frames=20` binary frames of shape `[2, 128, 128]`.
 
 ---
 
-## Hyperparameter Optimisation (ABC)
+## Installation
 
-The **Artificial Bee Colony** algorithm mimics foraging behaviour of honey bees. In our pipeline:
+```bash
+git clone https://github.com/TereshchenkoMisha/Gesture-recognition.git
+cd Gesture-recognition
+pip install -r requirements.txt
+```
 
-### Tunable SNN Hyperparameters
+Key dependencies: `torch`, `snntorch`, `tonic`, `nir`.
 
-- Learning rate
-- Beta
+---
 
-The best hyperparameter configuration is saved to `models/exported_nir/abc_best_config.json`.
+## Usage
+
+### 1. Baseline training
+
+```bash
+python src/pipeline/train.py
+```
+
+Parameters are set inside the file:
+- `epochs = 50`, `batch_size = 8`, `lr = 5e-4`
+- Best model is saved to `best_emg_model.pth`
+
+### 2. Hyperparameter optimization (ABC)
+
+```bash
+python src/optimization/abc_optimizer.py
+```
+
+The algorithm searches over `beta ∈ [0.5, 0.99]` and `lr ∈ [0.0001, 0.002]`.  
+Results are saved to `best_params.json`.
+
+Default configuration: `num_bees=6`, `iter_max=3`, `limit=2`.
+
+### 3. Training with optimized parameters
+
+```bash
+python src/pipeline/train_optimized_model.py
+```
+
+Reads `best_params.json`, trains for 50 epochs with `ReduceLROnPlateau` scheduler.  
+Best weights are saved to `best_optimized_model.pth`.
+
+### 4. Export to NIR
+
+```bash
+python src/pipeline/export_to_nir.py
+```
+
+Exports the trained model (`best_emg_model.pth`) to [NIR](https://github.com/neuromorphs/NIR) (Neuromorphic Intermediate Representation) format for deployment on neuromorphic hardware.
+
+---
+
+## ABC Algorithm
+
+`src/optimization/abc_optimizer.py`
+
+Implements the classic three-phase ABC:
+
+| Phase | Description |
+|-------|-------------|
+| **Employed bees** | Each bee modifies its food source (hyperparameter config) and evaluates fitness |
+| **Onlooker bees** | Select sources proportionally to fitness and explore their neighborhood |
+| **Scout bees** | Replace exhausted sources (`trials > limit`) with random new ones |
+
+Fitness function: validation error (`1 - accuracy`) after 3 training epochs.
 
 ---
 
 ## Team
 
-- *Saida Musaeva* – SNN architecture, ABC algorithm
-- *Makhail Tereshchenko* – training pipeline, hyperparameter optimisation,
-- *Anna Tihonova* – Data preparation, visualisation
-
+- **Saida Musaeva** — SNN architecture, ABC algorithm
+- **Mikhail Tereshchenko** — training pipeline, hyperparameter optimization
+- **Anna Tikhonova** — data preparation, visualization
