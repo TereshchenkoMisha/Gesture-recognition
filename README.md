@@ -24,8 +24,7 @@ To find optimal `beta` (membrane potential decay constant) and `learning rate`, 
 │   │       └── model.py                # GestureSNN architecture
 │   ├── optimization/
 │   │   ├── abc_optimizer.py            # Artificial Bee Colony
-│   │   ├── aco_optimizer.py            # Ant Colony Optimization
-│   │   └── pso_optimizer.py            # Particle Swarm Optimization
+│   │   
 │   └── pipeline/
 │       ├── dataloader/
 │       │   ├── dvs_gesture.py          # DVS128 Gesture loader (tonic)
