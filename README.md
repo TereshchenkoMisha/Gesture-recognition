@@ -146,7 +146,7 @@ Best weights are saved to `best_optimized_model.pth`.
 python src/pipeline/export_to_nir.py
 ```
 
-Exports the trained model (`best_emg_model.pth`) to [NIR](https://github.com/neuromorphs/NIR) (Neuromorphic Intermediate Representation) format for deployment on neuromorphic hardware.
+Exports the trained model (`best_emg_model.pth`) to NIR (Neuromorphic Intermediate Representation) format for deployment on neuromorphic hardware.
 
 ---
 
